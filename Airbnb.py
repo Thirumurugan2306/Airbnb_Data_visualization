@@ -16,6 +16,7 @@ chinese_to_english = {
     '香港島 Hong Kong Island': 'Hong Kong Island',
     '新界 New Territories': 'New Territories'
 }
+
 df['city'] = df['city'].replace(chinese_to_english)
 df['rating'] = df['rating'].astype(int)
 df['bedrooms'] = df['bedrooms'].astype(int)
@@ -27,7 +28,7 @@ def set_page_config():
 # Display the image in your Streamlit app
     
     st.set_page_config(
-        page_title="Extracting Business Card Data with OCR",
+        page_title="Airbnb Data Analysis",
         layout="wide",
     )
 
@@ -43,16 +44,24 @@ def set_page_config():
         """,
         unsafe_allow_html=True
     )
+    title_style = """
+    color: black;
+    text-align: center;
+    padding: 10px;
+    background-color: white;
+    border-radius: 15px; /* Adjust the value to control the curvature */
+    """
 
-    st.title("Intractive Property Locations Insights")
+    # Apply the custom style to the title
+    st.markdown(f'<h1 style="{title_style}">Interactive Airbnb Listings Insights</h1>', unsafe_allow_html=True)
+    st.markdown("")
     
 def navigation_menu():
     selected = option_menu(None, ["Map", "Price Analysis", "Charts","Trends"],  
-    menu_icon="cast", default_index=0, orientation="horizontal",styles={
-            "container": {"margin": "0", "padding": "0!important", "background-color": "#0c7ded"},
-            "icon": {"color": "black", "font-size": "17px"},
-            "nav-link": {"font-size": "17px", "text-align": "center", "margin": "2px", "--hover-color": "#1e0ead"},
-            "nav-link-selected": {"background-color": "#1e0ead"}
+    menu_icon="", default_index=0, orientation="horizontal",styles={
+            "container": {"margin": "1", "padding": "0", "background-color": "black",},           
+            "nav-link": {"font-size": "14px", "text-align": "center", "margin": "7px", "--hover-color": "#808080","border-radius": "10px"},
+            "nav-link-selected": {"background-color": "#CCCCCC","border-radius": "10px"}
     }
             )
     return selected
@@ -67,13 +76,13 @@ def main():
             selected_country = st.selectbox("Select Country", df["country"].unique())
             selected_city_options = df[df["country"] == selected_country]["city"].unique()
         with col2:
+            
             selected_city = st.selectbox("Select City", selected_city_options) if len(selected_city_options) > 0 else None
 
         # Filter the DataFrame based on selected filters
         filtered_df = df[
             (df["country"] == selected_country) &
-            (df["city"] == selected_city) if selected_city else True   
-        ]
+            (df["city"] == selected_city) if selected_city else True]
 
 
         with col3:
@@ -163,6 +172,9 @@ def main():
         fig.update_xaxes(title='City')
         fig.update_yaxes(title='Property Count')
         fig.update_traces(text=filtered_df.groupby(['city'])['name'].count().reset_index()['name'], textposition='outside')
+        
+
+        fig.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
 
 
         # Display the bar chart using Streamlit
@@ -173,32 +185,77 @@ def main():
         selected_city = st.selectbox("Select City", selected_city_options) if len(selected_city_options) > 0 else None
         #selected_name = st.selectbox("Select Property Name", filtered_df["name"].unique()) if not filtered_df.empty else None
         filtered_df =filtered_df[filtered_df["city"] == selected_city]
-        
-        fig = px.bar(
-                filtered_df,
+
+        acend_col, decend_col=st.columns(2)
+        with acend_col:
+
+            top_ascending_df = filtered_df.sort_values(by='price').tail(10)
+            fig_ascending = px.bar(
+                    top_ascending_df,
                 x='price',
                 y='name',
-                title='Property Prices by Name',
+                title='Top 10 Airbnb listings by Prices(High to Low) ',
                 labels={'price': 'Price'},
                 orientation='h',
+                color='price',  # Set color based on 'price' column
+                color_continuous_scale='Viridis',
             )
-        # Customize the layout
-        fig.update_xaxes(title='Property Name')
-        fig.update_yaxes(title='Price')
-        fig.update_traces(text=filtered_df['price'],textfont=dict(size=20), textposition='outside')
-        #fig.update_traces(marker=dict(line=dict(width=4)))  # Increase the width of the bars
-        fig.update_layout(bargap=0.5)  # Adjust the gap between bars (0.1 is the default)
+            fig_ascending.update_xaxes(title='')
+            fig_ascending.update_yaxes(title='')
+            fig_ascending.update_traces(text=top_ascending_df['price'], textfont=dict(size=20), textposition='outside')
+            fig_ascending.update_layout(bargap=0.5)
+            
 
-        # Display the column chart using Streamlit
-        st.plotly_chart(fig, use_container_width=True,height=1000 )
-        
-        st.table(filtered_df[['name','rating','bedrooms','price']])
+            fig_ascending.update_xaxes(tickvals=[], showticklabels=False)
+
+            st.plotly_chart(fig_ascending, use_container_width=True, height=500)
+            st.write("Top 10 Properties by Price (Ascending):")
+
+            top_descending_df = top_ascending_df.sort_values(by='price', ascending=False)
+
+            # Display the table in descending order by 'price'
+            st.table(top_descending_df[['name', 'rating', 'bedrooms', 'price']])
+            
+
+        # Create bar chart for descending order
+        with decend_col:
+            top_descending_df = filtered_df.sort_values(by='price', ascending=False).tail(10)
+            fig_descending = px.bar(
+                top_descending_df,
+                x='price',  
+                y='name',
+                title='Top 10 Airbnb listings by Prices(Low to High)',
+                labels={'price': 'Price'},
+                orientation='h',
+                color='price',  # Set color based on 'price' column
+                color_continuous_scale='Viridis',
+            )
+            fig_descending.update_xaxes(title='')
+            fig_descending.update_yaxes(title='')
+            fig_descending.update_traces(text=top_descending_df['price'], textfont=dict(size=20), textposition='outside')
+            fig_descending.update_layout(bargap=0.5)
+            fig_descending.update_xaxes(tickvals=[], showticklabels=False)
+            
+
+
+            # Display the charts using Streamlit
+            
+            st.plotly_chart(fig_descending, use_container_width=True, height=500)
+
+            # Display tables for both ascending and descending dataframes
+            
+            st.write("Top 10 Properties by Price (Descending):")
+            top_descending_df = top_descending_df.sort_values(by='price', ascending=True)
+
+            st.table(top_descending_df[['name', 'rating', 'bedrooms', 'price']])
+
+
     if selected=="Charts":
         my_grid = grid([4, 4], vertical_align="bottom")
         
         Criteria=my_grid.selectbox("Select the Criteria show Insights",['country','bedrooms','property_type','room_type'])
         
-        tab1, tab2= st.tabs(["All Properties", "By Selected country"])
+        tab1, tab2, tab3= st.tabs(["All Properties", "By Selected country","HeatMap"])
         with tab1:        
             title = f'Property Count | {Criteria}'            
             fig = px.bar(
@@ -228,6 +285,27 @@ def main():
             fig.update_yaxes(title='Property Count')
             fig.update_traces(text=filtered_df.groupby([Criteria])['name'].count().reset_index()['name'], textposition='outside')
             st.plotly_chart(fig, use_container_width=True)
+        with tab3:
+            columns_to_remove = ['_id', 'host_id', 'latitude', 'longitude']
+            filtered_df = filtered_df.drop(columns=columns_to_remove)
+            numeric_columns = filtered_df.select_dtypes(include=['number'])
+            correlation_matrix = numeric_columns.corr()
+
+            fig = px.imshow(
+                correlation_matrix,
+                x=correlation_matrix.columns,
+                y=correlation_matrix.columns,
+                title=title,
+                labels={'x': 'Property Name', 'y': 'Property Name'},
+                color_continuous_scale='Inferno',
+            )
+
+            fig.update_xaxes(title='')
+            fig.update_yaxes(title='')
+            st.plotly_chart(fig, use_container_width=True)
+
+                
+
     if selected=="Trends":
         my_grid = grid([4, 4], vertical_align="bottom")
         metric=my_grid.selectbox("select Metic",['price','rating','number_of_reviews']) 
@@ -240,8 +318,8 @@ def main():
             x='end_date',  # Assuming 'date' is the column containing date values
             y=metric,  # Assuming 'price' is the column containing price values
             title=f'{metric} Over Time in {selected_country}',
-            labels={'date': 'Date', 'price': 'Price'},
-        )
+            labels={'date': 'Date', 'price': 'Price'},            
+            )
 
         # Specify the axis labels
         fig.update_xaxes(title='')
